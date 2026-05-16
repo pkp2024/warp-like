@@ -104,14 +104,14 @@ async function runSession(session) {
   for (let i = 0; i < session.commands.length; i++) {
     scriptLines.push(`printf '%s\\n' "${sentinel}:S:${i}"`);
     scriptLines.push(session.commands[i]);
-    scriptLines.push(`__warp_ec__=$?`);
-    scriptLines.push(`printf '%s\\n' "${sentinel}:E:${i}:$__warp_ec__"`);
+    scriptLines.push(`__tp_ec__=$?`);
+    scriptLines.push(`printf '%s\\n' "${sentinel}:E:${i}:$__tp_ec__"`);
     if (session.stopOnError) {
-      scriptLines.push(`[ $__warp_ec__ -eq 0 ] || exit $__warp_ec__`);
+      scriptLines.push(`[ $__tp_ec__ -eq 0 ] || exit $__tp_ec__`);
     }
   }
 
-  const tmpDir = mkdtempSync("/tmp/warp-session-");
+  const tmpDir = mkdtempSync("/tmp/termpad-session-");
   const scriptFile = join(tmpDir, "run.sh");
   writeFileSync(scriptFile, scriptLines.join("\n") + "\n");
 
@@ -453,7 +453,7 @@ export function startServer({ port = Number(process.env.PORT || 4173), host = "1
 if (import.meta.url === `file://${process.argv[1]}`) {
   startServer()
     .then(({ url }) => {
-      console.log(`Warp-like terminal running at ${url}`);
+      console.log(`Termpad running at ${url}`);
     })
     .catch((error) => {
       console.error(error);

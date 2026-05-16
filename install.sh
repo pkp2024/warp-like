@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="pkp2024/warp-like"
-APP_NAME="warp-profiles"
+APP_NAME="termpad"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -34,7 +34,7 @@ if [ "$OS" = "Linux" ]; then
   DESKTOP_DIR="$HOME/.local/share/applications"
   mkdir -p "$INSTALL_DIR" "$DESKTOP_DIR" "$HOME/.local/share/icons"
 
-  info "Installing Warp Profiles ${VERSION} (Linux)..."
+  info "Installing Termpad ${VERSION} (Linux)..."
   APPIMAGE_PATH="$INSTALL_DIR/${APP_NAME}.AppImage"
   curl -fsSL --progress-bar "$DOWNLOAD_URL" -o "$APPIMAGE_PATH"
   chmod +x "$APPIMAGE_PATH"
@@ -42,8 +42,8 @@ if [ "$OS" = "Linux" ]; then
 
   cat > "$DESKTOP_DIR/${APP_NAME}.desktop" <<EOF
 [Desktop Entry]
-Name=Warp Profiles
-Comment=A Warp-like terminal profile launcher
+Name=Termpad
+Comment=A desktop terminal profile launcher
 Exec=${APPIMAGE_PATH} --no-sandbox
 Icon=${APP_NAME}
 Type=Application
@@ -62,19 +62,19 @@ EOF
   fi
 
   echo ""
-  ok "Warp Profiles ${VERSION} installed!"
-  echo "  App launcher: search for 'Warp Profiles' in your app menu"
+  ok "Termpad ${VERSION} installed!"
+  echo "  App launcher: search for 'Termpad' in your app menu"
   echo "  CLI:          ${APP_NAME}"
 
 elif [ "$OS" = "Darwin" ]; then
   DOWNLOAD_URL=$(echo "$LATEST" | grep -o '"browser_download_url": *"[^"]*\.dmg"' | grep -o 'https://[^"]*' | head -1)
   [ -n "$DOWNLOAD_URL" ] || error "Could not find a .dmg in the latest release."
 
-  info "Installing Warp Profiles ${VERSION} (macOS)..."
-  TMP_DMG="$(mktemp /tmp/warp-profiles-XXXXXX.dmg)"
+  info "Installing Termpad ${VERSION} (macOS)..."
+  TMP_DMG="$(mktemp /tmp/termpad-XXXXXX.dmg)"
   curl -fsSL --progress-bar "$DOWNLOAD_URL" -o "$TMP_DMG"
 
-  MOUNT_POINT="$(mktemp -d /tmp/warp-mount-XXXXXX)"
+  MOUNT_POINT="$(mktemp -d /tmp/termpad-mount-XXXXXX)"
   hdiutil attach "$TMP_DMG" -mountpoint "$MOUNT_POINT" -quiet
   APP_SRC="$(find "$MOUNT_POINT" -maxdepth 1 -name "*.app" | head -1)"
   [ -n "$APP_SRC" ] || { hdiutil detach "$MOUNT_POINT" -quiet; error "No .app found in dmg."; }
@@ -84,6 +84,6 @@ elif [ "$OS" = "Darwin" ]; then
   rm -f "$TMP_DMG"
 
   echo ""
-  ok "Warp Profiles ${VERSION} installed to /Applications!"
-  echo "  Open it from Launchpad or run: open '/Applications/Warp Profiles.app'"
+  ok "Termpad ${VERSION} installed to /Applications!"
+  echo "  Open it from Launchpad or run: open '/Applications/Termpad.app'"
 fi

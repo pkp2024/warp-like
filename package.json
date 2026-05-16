@@ -1,7 +1,7 @@
 {
-  "name": "warp-like-terminal",
+  "name": "termpad",
   "version": "1.0.0",
-  "description": "A local Warp-like profile launcher for predefined terminal command sets.",
+  "description": "A desktop terminal profile launcher for predefined command sets.",
   "type": "module",
   "main": "desktop/main.js",
   "scripts": {
@@ -11,8 +11,8 @@
     "dist:dir": "electron-builder --dir"
   },
   "build": {
-    "appId": "com.warplike.terminal",
-    "productName": "Warp Profiles",
+    "appId": "com.termpad.app",
+    "productName": "Termpad",
     "files": [
       "desktop/**/*",
       "public/**/*",

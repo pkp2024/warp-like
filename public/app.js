@@ -1,7 +1,7 @@
 import { Terminal } from "/vendor/@xterm/xterm/lib/xterm.mjs";
 import { FitAddon } from "/vendor/@xterm/addon-fit/lib/addon-fit.mjs";
 
-const storageKey = "warp-like-terminal-profiles";
+const storageKey = "termpad-profiles";
 
 const defaultProfiles = [
   {

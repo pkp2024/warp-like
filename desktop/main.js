@@ -32,7 +32,7 @@ function createWindow(path = "/") {
     height: 820,
     minWidth: 980,
     minHeight: 680,
-    title: "Warp Profiles",
+    title: "Termpad",
     backgroundColor: "#101114",
     autoHideMenuBar: true,
     webPreferences: {
@@ -52,7 +52,7 @@ function createWindow(path = "/") {
           height: 820,
           minWidth: 980,
           minHeight: 680,
-          title: "Warp Profiles",
+          title: "Termpad",
           backgroundColor: "#101114",
           autoHideMenuBar: true,
           webPreferences: {

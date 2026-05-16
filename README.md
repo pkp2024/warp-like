@@ -1,6 +1,6 @@
-# Warp Like Profiles
+# Termpad
 
-A lightweight desktop terminal launcher inspired by [Warp](https://www.warp.dev/). Define named profiles — each a list of shell commands with a working directory — and launch them with one click. All commands run in a real PTY inside a built-in xterm terminal.
+A lightweight desktop terminal launcher. Define named profiles — each a list of shell commands with a working directory — and launch them with one click. All commands run in a real PTY inside a built-in xterm terminal.
 
 ---
 
@@ -25,7 +25,7 @@ Electron window
             └─ POST /api/shells/:id/input     → sends keystrokes to the shell
 ```
 
-Profiles are stored in your OS user-data directory (`~/.config/Warp Profiles/profiles.json` on Linux) so they survive updates.
+Profiles are stored in your OS user-data directory (`~/.config/Termpad/profiles.json` on Linux) so they survive updates.
 
 ---
 
@@ -40,10 +40,10 @@ curl -fsSL https://raw.githubusercontent.com/pkp2024/warp-like/main/install.sh |
 - Downloads the latest AppImage, installs it to `~/.local/bin/`
 - Creates a `.desktop` entry so it appears in your app launcher automatically
 
-Open it from your app menu by searching **Warp Profiles**, or from the terminal:
+Open it from your app menu by searching **Termpad**, or from the terminal:
 
 ```bash
-warp-profiles
+termpad
 ```
 
 > If `~/.local/bin` is not on your `PATH`, add this to `~/.bashrc` or `~/.zshrc`:
@@ -57,12 +57,12 @@ warp-profiles
 curl -fsSL https://raw.githubusercontent.com/pkp2024/warp-like/main/install.sh | bash
 ```
 
-- Downloads the latest `.dmg` and copies `Warp Profiles.app` to `/Applications/`
+- Downloads the latest `.dmg` and copies `Termpad.app` to `/Applications/`
 
 Open it from Launchpad or run:
 
 ```bash
-open "/Applications/Warp Profiles.app"
+open "/Applications/Termpad.app"
 ```
 
 ### Windows
@@ -74,7 +74,7 @@ irm https://raw.githubusercontent.com/pkp2024/warp-like/main/install.ps1 | iex
 ```
 
 - Downloads and runs the NSIS installer silently
-- Find it in the Start menu by searching **Warp Profiles**
+- Find it in the Start menu by searching **Termpad**
 
 ---
 
@@ -90,11 +90,9 @@ npm install
 # Run in Electron
 npm run desktop
 
-# Build an AppImage
+# Build a distributable
 npm run dist
 ```
-
-The AppImage is output to `dist/`.
 
 ---
 
