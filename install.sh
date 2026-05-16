@@ -34,6 +34,27 @@ if [ "$OS" = "Linux" ]; then
   DESKTOP_DIR="$HOME/.local/share/applications"
   mkdir -p "$INSTALL_DIR" "$DESKTOP_DIR" "$HOME/.local/share/icons"
 
+  # AppImages require FUSE — install it if missing
+  if ! ldconfig -p 2>/dev/null | grep -q libfuse.so.2; then
+    if command -v apt-get >/dev/null 2>&1; then
+      info "Installing libfuse2 (required for AppImage)..."
+      sudo apt-get install -y libfuse2
+    elif command -v dnf >/dev/null 2>&1; then
+      info "Installing fuse (required for AppImage)..."
+      sudo dnf install -y fuse
+    elif command -v pacman >/dev/null 2>&1; then
+      info "Installing fuse2 (required for AppImage)..."
+      sudo pacman -S --noconfirm fuse2
+    else
+      echo ""
+      echo "  libfuse2 is required to run AppImages. Install it with your package manager:"
+      echo "    sudo apt-get install -y libfuse2   # Debian/Ubuntu"
+      echo "    sudo dnf install -y fuse           # Fedora"
+      echo "    sudo pacman -S fuse2               # Arch"
+      echo ""
+    fi
+  fi
+
   info "Installing Termpad ${VERSION} (Linux)..."
   APPIMAGE_PATH="$INSTALL_DIR/${APP_NAME}.AppImage"
   curl -fsSL --progress-bar "$DOWNLOAD_URL" -o "$APPIMAGE_PATH"
