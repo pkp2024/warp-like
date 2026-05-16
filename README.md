@@ -1,4 +1,4 @@
-# Warp Profiles
+# Warp Like Profiles
 
 A lightweight desktop terminal launcher inspired by [Warp](https://www.warp.dev/). Define named profiles — each a list of shell commands with a working directory — and launch them with one click. All commands run in a real PTY inside a built-in xterm terminal.
 
