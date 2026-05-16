@@ -65,17 +65,6 @@ Open it from Launchpad or run:
 open "/Applications/Termpad.app"
 ```
 
-### Windows
-
-Run this in PowerShell (no admin required):
-
-```powershell
-irm https://raw.githubusercontent.com/pkp2024/warp-like/main/install.ps1 | iex
-```
-
-- Downloads and runs the NSIS installer silently
-- Find it in the Start menu by searching **Termpad**
-
 ---
 
 ## Build from source

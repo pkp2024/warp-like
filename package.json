@@ -28,9 +28,6 @@
     "mac": {
       "target": "dmg"
     },
-    "win": {
-      "target": "nsis"
-    }
   },
   "devDependencies": {
     "electron": "^30.5.1",
