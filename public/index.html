@@ -123,13 +123,13 @@
               </div>
               <p id="terminalStatus">Ready</p>
               <button id="cancelSessionButton" class="ghost-button compact" type="button" disabled>Cancel</button>
-              <button id="splitModeButton" class="ghost-button compact" type="button">Split</button>
+              <button id="splitRightButton" class="ghost-button compact" type="button">Split →</button>
+              <button id="splitDownButton" class="ghost-button compact" type="button">Split ↓</button>
               <button id="restartShellButton" class="ghost-button compact" type="button">Restart shell</button>
               <button id="clearTerminalButton" class="ghost-button compact" type="button">Clear</button>
             </div>
             <div id="terminalOutputWrapper" class="terminal-output-wrapper">
               <div id="terminalOutput" class="terminal-output" aria-label="Terminal"></div>
-              <div id="terminalSplitPane" class="terminal-output terminal-split-pane" aria-label="Split terminal"></div>
             </div>
           </section>
         </div>
@@ -149,6 +149,13 @@
         </div>
       </form>
     </dialog>
+
+    <div id="terminalContextMenu" class="terminal-context-menu" hidden>
+      <button data-action="clear">Clear</button>
+      <button data-action="split-right">Split Right</button>
+      <button data-action="split-down">Split Down</button>
+      <button data-action="close">Close pane</button>
+    </div>
 
     <script type="module" src="/app.js"></script>
   </body>

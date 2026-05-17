@@ -58,9 +58,9 @@ const state = {
   activeEditor: "profile",
   tabs: [],
   activeTabId: null,
-  splitMode: false,
-  splitTab: null,
-  focusedSide: "left"
+  splitPanes: [],
+  focusedPaneId: null,
+  mainLeafEl: null
 };
 
 const elements = {
@@ -80,7 +80,6 @@ const elements = {
   terminalTabs: document.querySelector("#terminalTabs"),
   terminalOutput: document.querySelector("#terminalOutput"),
   terminalOutputWrapper: document.querySelector("#terminalOutputWrapper"),
-  terminalSplitPane: document.querySelector("#terminalSplitPane"),
   terminalStatus: document.querySelector("#terminalStatus"),
   newTerminalTabButton: document.querySelector("#newTerminalTabButton"),
   newProfileButton: document.querySelector("#newProfileButton"),
@@ -94,7 +93,9 @@ const elements = {
   cancelSessionButton: document.querySelector("#cancelSessionButton"),
   restartShellButton: document.querySelector("#restartShellButton"),
   clearTerminalButton: document.querySelector("#clearTerminalButton"),
-  splitModeButton: document.querySelector("#splitModeButton"),
+  splitRightButton: document.querySelector("#splitRightButton"),
+  splitDownButton: document.querySelector("#splitDownButton"),
+  terminalContextMenu: document.querySelector("#terminalContextMenu"),
   variableModal: document.querySelector("#variableModal"),
   variableForm: document.querySelector("#variableForm"),
   variableInputs: document.querySelector("#variableInputs"),
@@ -185,15 +186,24 @@ function activeTab() {
   return state.tabs.find((tab) => tab.id === state.activeTabId);
 }
 
+function getPaneById(id) {
+  return state.splitPanes.find(p => p.id === id);
+}
+
 function focusedTab() {
-  if (state.splitMode && state.focusedSide === "right") return state.splitTab;
+  if (state.focusedPaneId !== null) {
+    return getPaneById(state.focusedPaneId) ?? activeTab();
+  }
   return activeTab();
 }
 
-function setFocusedSide(side) {
-  state.focusedSide = side;
-  elements.terminalOutput.classList.toggle("is-focused", side === "left");
-  elements.terminalSplitPane.classList.toggle("is-focused", side === "right");
+function setFocusedPane(id) {
+  state.focusedPaneId = id;
+  const hasSplits = state.splitPanes.length > 0;
+  elements.terminalOutput.classList.toggle("is-focused", id === null && hasSplits);
+  state.splitPanes.forEach(pane => {
+    pane.leafEl.classList.toggle("is-focused", pane.id === id);
+  });
   const ft = focusedTab();
   elements.terminalStatus.textContent = ft?.status || "Ready";
   elements.cancelSessionButton.disabled = !ft?.profileSessionRunning;
@@ -477,7 +487,7 @@ function renderTabs() {
 
 function setActiveTab(id) {
   state.activeTabId = id;
-  if (state.splitMode) setFocusedSide("left");
+  if (state.splitPanes.length > 0) setFocusedPane(null);
   renderTabs();
   activeTab()?.terminal.focus();
 }
@@ -514,7 +524,7 @@ function createTerminalTab({ title = "Terminal", startShell = true } = {}) {
   };
 
   terminal.onData((data) => {
-    if (state.splitMode) setFocusedSide("left");
+    if (state.splitPanes.length > 0) setFocusedPane(null);
     sendTerminalInput(tab, data);
   });
   state.tabs.push(tab);
@@ -529,10 +539,13 @@ function createTerminalTab({ title = "Terminal", startShell = true } = {}) {
   return tab;
 }
 
-function createSplitTerminal() {
-  const container = document.createElement("div");
-  container.className = "terminal-instance active";
-  elements.terminalSplitPane.append(container);
+function createSplitPane() {
+  const leafEl = document.createElement("div");
+  leafEl.className = "split-leaf";
+
+  const containerEl = document.createElement("div");
+  containerEl.className = "terminal-instance active";
+  leafEl.append(containerEl);
 
   const terminal = new Terminal({
     cursorBlink: true,
@@ -543,13 +556,14 @@ function createSplitTerminal() {
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
-  terminal.open(container);
+  terminal.open(containerEl);
 
-  const tab = {
+  const pane = {
     id: crypto.randomUUID(),
     title: "Split",
     status: "Ready",
-    container,
+    leafEl,
+    containerEl,
     terminal,
     fitAddon,
     shellId: null,
@@ -559,50 +573,206 @@ function createSplitTerminal() {
     profileSessionRunning: false
   };
 
-  terminal.onData((data) => {
-    setFocusedSide("right");
-    sendTerminalInput(tab, data);
+  terminal.onData(data => {
+    setFocusedPane(pane.id);
+    sendTerminalInput(pane, data);
   });
 
-  startInteractiveShell(tab);
-  return tab;
+  leafEl.addEventListener("click", () => {
+    setFocusedPane(pane.id);
+    terminal.focus();
+  });
+
+  leafEl.addEventListener("contextmenu", e => showContextMenu(e, pane.id));
+
+  return pane;
 }
 
-function toggleSplitMode() {
-  if (state.splitMode) {
-    state.splitMode = false;
-    elements.terminalOutputWrapper.classList.remove("is-split");
-    elements.splitModeButton.classList.remove("is-active");
-    elements.splitModeButton.textContent = "Split";
+function initResizer(resizerEl) {
+  let dragging = false;
+  let startPos, startSizeA, startSizeB, siblingA, siblingB, isRow;
 
-    if (state.splitTab) {
-      if (state.splitTab.shellId) {
-        fetch(`/api/shells/${state.splitTab.shellId}/close`, { method: "POST" }).catch(() => {});
-      }
-      state.splitTab.shellEventSource?.close();
-      state.splitTab.terminal.dispose();
-      state.splitTab.container.remove();
-      state.splitTab = null;
-    }
+  resizerEl.addEventListener("mousedown", e => {
+    const container = resizerEl.parentElement;
+    isRow = container.classList.contains("split-right");
+    siblingA = resizerEl.previousElementSibling;
+    siblingB = resizerEl.nextElementSibling;
+    const rectA = siblingA.getBoundingClientRect();
+    const rectB = siblingB.getBoundingClientRect();
+    startPos = isRow ? e.clientX : e.clientY;
+    startSizeA = isRow ? rectA.width : rectA.height;
+    startSizeB = isRow ? rectB.width : rectB.height;
+    dragging = true;
+    resizerEl.classList.add("is-dragging");
+    document.body.style.cursor = isRow ? "col-resize" : "row-resize";
+    document.body.style.userSelect = "none";
+    elements.terminalOutputWrapper.style.pointerEvents = "none";
+    e.preventDefault();
+    e.stopPropagation();
+  });
 
-    setFocusedSide("left");
-    activeTab()?.terminal.focus();
+  document.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    const delta = (isRow ? e.clientX : e.clientY) - startPos;
+    const newA = Math.max(50, startSizeA + delta);
+    const newB = Math.max(50, startSizeA + startSizeB - newA);
+    siblingA.style.flex = newA;
+    siblingB.style.flex = newB;
     scheduleFitActiveTerminal();
-  } else {
-    state.splitMode = true;
-    elements.terminalOutputWrapper.classList.add("is-split");
-    elements.splitModeButton.classList.add("is-active");
-    elements.splitModeButton.textContent = "Close split";
+  });
 
-    state.splitTab = createSplitTerminal();
-    requestAnimationFrame(() => {
-      state.splitTab.fitAddon.fit();
-      resizePty(state.splitTab);
-      state.splitTab.terminal.focus();
-      setFocusedSide("right");
-    });
-  }
+  document.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false;
+    resizerEl.classList.remove("is-dragging");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    elements.terminalOutputWrapper.style.pointerEvents = "";
+  });
 }
+
+function splitAt(targetId, direction) {
+  if (state.splitPanes.length >= 7) return;
+
+  let targetLeafEl;
+  if (targetId === null) {
+    if (!state.mainLeafEl) {
+      state.mainLeafEl = document.createElement("div");
+      state.mainLeafEl.className = "split-leaf";
+      elements.terminalOutputWrapper.insertBefore(state.mainLeafEl, elements.terminalOutput);
+      state.mainLeafEl.append(elements.terminalOutput);
+    }
+    targetLeafEl = state.mainLeafEl;
+  } else {
+    const p = getPaneById(targetId);
+    if (!p) return;
+    targetLeafEl = p.leafEl;
+  }
+
+  const containerEl = document.createElement("div");
+  containerEl.className = `split-container split-${direction}`;
+
+  const parent = targetLeafEl.parentElement;
+  parent.insertBefore(containerEl, targetLeafEl);
+  containerEl.append(targetLeafEl);
+  targetLeafEl.style.flex = "1";
+
+  const resizerEl = document.createElement("div");
+  resizerEl.className = "split-resizer";
+  containerEl.append(resizerEl);
+  initResizer(resizerEl);
+
+  const pane = createSplitPane();
+  pane.leafEl.style.flex = "1";
+  containerEl.append(pane.leafEl);
+  state.splitPanes.push(pane);
+
+  requestAnimationFrame(() => {
+    pane.fitAddon.fit();
+    startInteractiveShell(pane);
+    pane.terminal.focus();
+    setFocusedPane(pane.id);
+  });
+}
+
+function closePane(paneId) {
+  const pane = getPaneById(paneId);
+  if (!pane) return;
+
+  if (pane.shellId) fetch(`/api/shells/${pane.shellId}/close`, { method: "POST" }).catch(() => {});
+  pane.shellEventSource?.close();
+  pane.terminal.dispose();
+
+  const leafEl = pane.leafEl;
+  const containerEl = leafEl.parentElement;
+  const children = [...containerEl.children];
+  const resizerEl = children.find(c => c.classList.contains("split-resizer"));
+  const sibling = children.find(c => c !== leafEl && c !== resizerEl);
+
+  const grandparent = containerEl.parentElement;
+  grandparent.insertBefore(sibling, containerEl);
+  containerEl.remove();
+  sibling.style.flex = "";
+
+  state.splitPanes = state.splitPanes.filter(p => p.id !== paneId);
+
+  if (state.splitPanes.length === 0 && state.mainLeafEl) {
+    const leafParent = state.mainLeafEl.parentElement;
+    leafParent.insertBefore(elements.terminalOutput, state.mainLeafEl);
+    state.mainLeafEl.remove();
+    state.mainLeafEl = null;
+    elements.terminalOutput.classList.remove("is-focused");
+  }
+
+  if (state.focusedPaneId === paneId) {
+    const remaining = state.splitPanes;
+    if (remaining.length > 0) {
+      setFocusedPane(remaining[remaining.length - 1].id);
+      remaining[remaining.length - 1].terminal.focus();
+    } else {
+      setFocusedPane(null);
+      activeTab()?.terminal.focus();
+    }
+  } else {
+    setFocusedPane(state.focusedPaneId);
+  }
+
+  scheduleFitActiveTerminal();
+}
+
+// ── Context menu ──────────────────────────────────────────────────────────────
+
+let contextMenuPaneId = undefined;
+
+function showContextMenu(e, paneId) {
+  e.preventDefault();
+  contextMenuPaneId = paneId;
+  const menu = elements.terminalContextMenu;
+  const atMax = state.splitPanes.length >= 7;
+  menu.querySelector("[data-action=split-right]").disabled = atMax;
+  menu.querySelector("[data-action=split-down]").disabled = atMax;
+  menu.querySelector("[data-action=close]").hidden = paneId === null;
+  let x = e.clientX;
+  let y = e.clientY;
+  if (x + 160 > window.innerWidth) x = window.innerWidth - 168;
+  if (y + 150 > window.innerHeight) y = window.innerHeight - 158;
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+  menu.hidden = false;
+}
+
+function hideContextMenu() {
+  elements.terminalContextMenu.hidden = true;
+  contextMenuPaneId = undefined;
+}
+
+elements.terminalContextMenu.addEventListener("click", (e) => {
+  const action = e.target.closest("[data-action]")?.dataset.action;
+  if (!action) return;
+  const id = contextMenuPaneId;
+  hideContextMenu();
+  if (action === "clear") {
+    const tab = id === null ? activeTab() : getPaneById(id);
+    tab?.terminal.clear();
+    tab?.terminal.focus();
+  } else if (action === "split-right") {
+    splitAt(id, "right");
+  } else if (action === "split-down") {
+    splitAt(id, "down");
+  } else if (action === "close" && id !== null) {
+    closePane(id);
+  }
+});
+
+document.addEventListener("click", (e) => {
+  if (!elements.terminalContextMenu.hidden && !elements.terminalContextMenu.contains(e.target)) {
+    hideContextMenu();
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") hideContextMenu();
+});
 
 let saveTimer;
 function saveActiveProfileDebounced() {
@@ -629,10 +799,10 @@ function scheduleFitActiveTerminal() {
       }
     }
 
-    if (state.splitMode && state.splitTab) {
-      state.splitTab.fitAddon.fit();
-      resizePty(state.splitTab);
-    }
+    state.splitPanes.forEach(pane => {
+      pane.fitAddon.fit();
+      resizePty(pane);
+    });
   });
 }
 
@@ -1032,18 +1202,14 @@ elements.restartShellButton.addEventListener("click", () => {
 });
 
 elements.terminalOutput.addEventListener("click", () => {
-  if (state.splitMode) setFocusedSide("left");
+  if (state.splitPanes.length > 0) setFocusedPane(null);
   activeTab()?.terminal.focus();
 });
 
-elements.terminalSplitPane.addEventListener("click", () => {
-  if (state.splitMode) {
-    setFocusedSide("right");
-    state.splitTab?.terminal.focus();
-  }
-});
+elements.terminalOutput.addEventListener("contextmenu", (e) => showContextMenu(e, null));
 
-elements.splitModeButton.addEventListener("click", toggleSplitMode);
+elements.splitRightButton.addEventListener("click", () => splitAt(state.focusedPaneId, "right"));
+elements.splitDownButton.addEventListener("click", () => splitAt(state.focusedPaneId, "down"));
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
