@@ -215,7 +215,7 @@ async function runSession(session) {
 function createShellSession(cwd, size = {}) {
   const id = randomUUID();
   const { cols, rows } = parsePtySize(size);
-  const shell = pty.spawn(process.env.SHELL || "/bin/bash", ["--login", "-i"], {
+  const shell = pty.spawn(process.env.SHELL || "/bin/bash", [], {
     name: "xterm-256color",
     cols,
     rows,
