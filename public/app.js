@@ -629,6 +629,7 @@ function createTerminalTab({ title = "Terminal", startShell = true } = {}) {
     terminal,
     fitAddon,
     shellId: null,
+    shellStarting: null,
     shellEventSource: null,
     activeSessionId: null,
     eventSource: null,
@@ -682,6 +683,7 @@ function createSplitPane() {
     terminal,
     fitAddon,
     shellId: null,
+    shellStarting: null,
     shellEventSource: null,
     activeSessionId: null,
     eventSource: null,
@@ -941,6 +943,8 @@ async function resizePty(tab) {
 async function startInteractiveShell(tab = activeTab(), { clear = false, cwd = null } = {}) {
   if (!tab) return;
 
+  if (tab.shellStarting) return tab.shellStarting;
+
   if (tab.shellId) {
     await fetch(`/api/shells/${tab.shellId}/close`, { method: "POST" }).catch(() => {});
   }
@@ -952,6 +956,9 @@ async function startInteractiveShell(tab = activeTab(), { clear = false, cwd = n
   }
 
   const profile = activeProfile();
+  let resolveReady;
+  tab.shellStarting = new Promise(resolve => { resolveReady = resolve; });
+
   const response = await fetch("/api/shells", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -966,6 +973,8 @@ async function startInteractiveShell(tab = activeTab(), { clear = false, cwd = n
     const error = await response.json();
     tab.terminal.write(`${error.error || "Unable to start shell"}\r\n`);
     updateTabStatus(tab, "Shell failed");
+    tab.shellStarting = null;
+    resolveReady();
     return;
   }
 
@@ -974,11 +983,24 @@ async function startInteractiveShell(tab = activeTab(), { clear = false, cwd = n
   updateTabStatus(tab, `Bash ready: ${shell.cwd}`);
 
   tab.shellEventSource = new EventSource(`/api/shells/${shell.id}/events`);
-  tab.shellEventSource.onmessage = (message) => handleShellEvent(tab, JSON.parse(message.data));
+  tab.shellEventSource.onmessage = (message) => {
+    const event = JSON.parse(message.data);
+    handleShellEvent(tab, event);
+    if (event.type === "output" && tab.shellStarting) {
+      tab.shellStarting = null;
+      resolveReady();
+    }
+  };
   tab.shellEventSource.onerror = () => {
     updateTabStatus(tab, "Shell connection closed");
     tab.shellEventSource?.close();
+    if (tab.shellStarting) {
+      tab.shellStarting = null;
+      resolveReady();
+    }
   };
+
+  return tab.shellStarting;
 }
 
 function handleShellEvent(tab, event) {
@@ -997,6 +1019,8 @@ function handleShellEvent(tab, event) {
 async function sendTerminalInput(tab, input) {
   if (!tab.profileSessionRunning && !tab.shellId) {
     await startInteractiveShell(tab);
+  } else if (tab.shellStarting) {
+    await tab.shellStarting;
   }
 
   const target = tab.profileSessionRunning && tab.activeSessionId
