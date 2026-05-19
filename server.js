@@ -260,6 +260,12 @@ async function handleApi(req, res, url) {
       const payload = await readJson(req);
       const cwd = resolveWorkingDirectory(payload.cwd);
       const shell = createShellSession(cwd, payload);
+      await new Promise((resolve) => {
+        if (shell.events.some(e => e.type === "output")) { resolve(); return; }
+        const onEvent = (e) => { if (e.type === "output") { shell.emitter.off("event", onEvent); resolve(); } };
+        shell.emitter.on("event", onEvent);
+        setTimeout(() => { shell.emitter.off("event", onEvent); resolve(); }, 3000);
+      });
       sendJson(res, 201, { id: shell.id, cwd: shell.cwd });
     } catch (error) {
       sendJson(res, 400, { error: error.message });

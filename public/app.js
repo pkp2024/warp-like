@@ -956,49 +956,40 @@ async function startInteractiveShell(tab = activeTab(), { clear = false, cwd = n
   }
 
   const profile = activeProfile();
-  let resolveReady;
-  tab.shellStarting = new Promise(resolve => { resolveReady = resolve; });
 
-  const response = await fetch("/api/shells", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      cwd: cwd ?? profile?.cwd ?? "",
-      cols: tab.terminal.cols,
-      rows: tab.terminal.rows
-    })
-  });
+  tab.shellStarting = (async () => {
+    try {
+      const response = await fetch("/api/shells", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          cwd: cwd ?? profile?.cwd ?? "",
+          cols: tab.terminal.cols,
+          rows: tab.terminal.rows
+        })
+      });
 
-  if (!response.ok) {
-    const error = await response.json();
-    tab.terminal.write(`${error.error || "Unable to start shell"}\r\n`);
-    updateTabStatus(tab, "Shell failed");
-    tab.shellStarting = null;
-    resolveReady();
-    return;
-  }
+      if (!response.ok) {
+        const error = await response.json();
+        tab.terminal.write(`${error.error || "Unable to start shell"}\r\n`);
+        updateTabStatus(tab, "Shell failed");
+        return;
+      }
 
-  const shell = await response.json();
-  tab.shellId = shell.id;
-  updateTabStatus(tab, `Bash ready: ${shell.cwd}`);
+      const shell = await response.json();
+      tab.shellId = shell.id;
+      updateTabStatus(tab, `Bash ready: ${shell.cwd}`);
 
-  tab.shellEventSource = new EventSource(`/api/shells/${shell.id}/events`);
-  tab.shellEventSource.onmessage = (message) => {
-    const event = JSON.parse(message.data);
-    handleShellEvent(tab, event);
-    if (event.type === "output" && tab.shellStarting) {
+      tab.shellEventSource = new EventSource(`/api/shells/${shell.id}/events`);
+      tab.shellEventSource.onmessage = (message) => handleShellEvent(tab, JSON.parse(message.data));
+      tab.shellEventSource.onerror = () => {
+        updateTabStatus(tab, "Shell connection closed");
+        tab.shellEventSource?.close();
+      };
+    } finally {
       tab.shellStarting = null;
-      resolveReady();
     }
-  };
-  tab.shellEventSource.onerror = () => {
-    updateTabStatus(tab, "Shell connection closed");
-    tab.shellEventSource?.close();
-    if (tab.shellStarting) {
-      tab.shellStarting = null;
-      resolveReady();
-    }
-  };
+  })();
 
   return tab.shellStarting;
 }
