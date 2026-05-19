@@ -21,21 +21,21 @@
           </div>
         </div>
 
-        <div class="sidebar-section">
-          <button id="newProfileButton" class="primary-button" type="button">
-            <span aria-hidden="true">+</span>
-            New profile
-          </button>
+        <details class="sidebar-section" open>
+          <summary class="sidebar-section-header">
+            <span class="sidebar-section-title">Profiles</span>
+            <button id="newProfileButton" class="icon-button compact-icon" type="button" aria-label="New profile">+</button>
+          </summary>
           <nav id="profileList" class="profile-list" aria-label="Saved profiles"></nav>
-        </div>
+        </details>
 
-        <div class="sidebar-section">
-          <button id="newGroupButton" class="ghost-button sidebar-action" type="button">
-            <span aria-hidden="true">+</span>
-            New group
-          </button>
+        <details class="sidebar-section" open>
+          <summary class="sidebar-section-header">
+            <span class="sidebar-section-title">Groups</span>
+            <button id="newGroupButton" class="icon-button compact-icon" type="button" aria-label="New group">+</button>
+          </summary>
           <nav id="groupList" class="profile-list" aria-label="Profile groups"></nav>
-        </div>
+        </details>
       </aside>
 
       <section class="workspace">
@@ -57,91 +57,144 @@
         <div class="editor-terminal-layout">
           <section id="profileEditor" class="profile-editor" aria-label="Profile editor">
             <div id="profileFields" class="editor-fields">
-              <label>
-                Profile name
-                <input id="profileNameInput" autocomplete="off" />
-              </label>
 
-              <label>
-                Working directory
-                <input id="cwdInput" placeholder="/home/you/project" autocomplete="off" />
-              </label>
-
-              <div class="switch-row">
-                <div>
-                  <strong>Stop on first error</strong>
-                  <span>Keep later commands from running if one fails.</span>
-                </div>
-                <label class="switch">
-                  <input id="stopOnErrorInput" type="checkbox" />
-                  <span></span>
+              <div class="editor-section editor-section-general">
+                <label>
+                  Profile name
+                  <input id="profileNameInput" autocomplete="off" />
                 </label>
-              </div>
-
-              <div class="appearance-section">
-                <div class="appearance-label">Theme</div>
-                <div id="themeSwatches" class="theme-swatches"></div>
-              </div>
-
-              <label>
-                Font
-                <select id="fontSelect" class="font-select">
-                  <option value="jetbrains">JetBrains Mono</option>
-                  <option value="fira">Fira Code</option>
-                  <option value="sourceCode">Source Code Pro</option>
-                  <option value="ubuntu">Ubuntu Mono</option>
-                </select>
-              </label>
-
-              <div class="switch-row">
-                <div>
-                  <strong>Log format</strong>
-                  <span>Apply a pattern to each output line (log4j2-style).</span>
+                <div class="switch-row">
+                  <div>
+                    <strong>Stop on first error</strong>
+                    <span>Keep later commands from running if one fails.</span>
+                  </div>
+                  <label class="switch">
+                    <input id="stopOnErrorInput" type="checkbox" />
+                    <span></span>
+                  </label>
                 </div>
-                <label class="switch">
-                  <input id="logFormatInput" type="checkbox" />
-                  <span></span>
-                </label>
               </div>
 
-              <label id="logPatternRow" hidden>
-                Pattern
-                <input id="logPatternInput" placeholder="[%d{HH:mm:ss}] [%-5level] %msg" autocomplete="off" />
-              </label>
-
-              <div class="commands-header">
-                <div>
-                  <h3>Commands</h3>
-                  <p>They run from top to bottom when this profile launches.</p>
+              <details class="editor-section" open>
+                <summary class="editor-section-header">
+                  <span>Appearance</span>
+                </summary>
+                <div class="editor-section-body">
+                  <div class="mode-toggle-bar">
+                    <button class="mode-toggle-btn active" data-target="theme" data-mode="swatches" type="button">Swatches</button>
+                    <button class="mode-toggle-btn" data-target="theme" data-mode="yaml" type="button">YAML</button>
+                  </div>
+                  <div id="themeSwatchesView">
+                    <div class="appearance-section">
+                      <div class="appearance-label">Theme</div>
+                      <div id="themeSwatches" class="theme-swatches"></div>
+                      <button id="showMoreThemesBtn" class="show-more-btn" type="button" hidden>Show more</button>
+                    </div>
+                    <label>
+                      Font
+                      <select id="fontSelect" class="font-select">
+                        <option value="jetbrains">JetBrains Mono</option>
+                        <option value="fira">Fira Code</option>
+                        <option value="sourceCode">Source Code Pro</option>
+                        <option value="ubuntu">Ubuntu Mono</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div id="themeYamlView" hidden>
+                    <label>
+                      Custom theme
+                      <textarea id="themeYamlInput" class="theme-yaml-editor" spellcheck="false" placeholder="background: &quot;#0b1117&quot;&#10;foreground: &quot;#d4d4d4&quot;&#10;..."></textarea>
+                    </label>
+                    <div class="yaml-theme-actions">
+                      <div id="createThemeForm" class="create-theme-form" hidden>
+                        <input id="customThemeNameInput" placeholder="Theme name" autocomplete="off" />
+                        <button id="confirmCreateThemeBtn" class="ghost-button compact" type="button">Save</button>
+                        <button id="cancelCreateThemeBtn" class="icon-button compact-icon" type="button">×</button>
+                      </div>
+                      <button id="createCustomThemeBtn" class="ghost-button compact" type="button">+ Save as theme</button>
+                    </div>
+                  </div>
                 </div>
-                <button id="addCommandButton" class="icon-button" type="button" aria-label="Add command">+</button>
+              </details>
+
+              <details class="editor-section">
+                <summary class="editor-section-header">
+                  <span>Logging</span>
+                </summary>
+                <div class="editor-section-body">
+                  <div class="switch-row">
+                    <div>
+                      <strong>Log format</strong>
+                      <span>Apply a pattern to each output line (log4j2-style).</span>
+                    </div>
+                    <label class="switch">
+                      <input id="logFormatInput" type="checkbox" />
+                      <span></span>
+                    </label>
+                  </div>
+                  <label id="logPatternRow" hidden>
+                    Pattern
+                    <input id="logPatternInput" placeholder="[%d{HH:mm:ss}] [%-5level] %msg" autocomplete="off" />
+                  </label>
+                </div>
+              </details>
+
+              <details class="editor-section" open>
+                <summary class="editor-section-header">
+                  <span>Commands</span>
+                  <button id="addCommandButton" class="icon-button compact-icon" type="button" aria-label="Add command">+</button>
+                </summary>
+                <div class="editor-section-body">
+                  <div class="mode-toggle-bar">
+                    <button class="mode-toggle-btn active" data-target="command" data-mode="list" type="button">List</button>
+                    <button class="mode-toggle-btn" data-target="command" data-mode="script" type="button">Script</button>
+                  </div>
+                  <div id="commandListView">
+                    <p class="editor-section-hint">Run top to bottom when this profile launches.</p>
+                    <div id="commandList" class="command-list"></div>
+                  </div>
+                  <div id="scriptView" hidden>
+                    <label>
+                      Script
+                      <textarea id="scriptTextarea" class="theme-yaml-editor script-editor" spellcheck="false" placeholder="#!/bin/bash&#10;cd /home/you/project&#10;npm start"></textarea>
+                    </label>
+                    <div class="script-actions">
+                      <span id="scriptSaveStatus" class="script-save-status"></span>
+                      <button id="saveScriptButton" class="ghost-button compact" type="button">Save script</button>
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <div class="editor-actions">
+                <button id="duplicateProfileButton" class="ghost-button" type="button">Duplicate</button>
+                <button id="deleteProfileButton" class="danger-button" type="button">Delete</button>
               </div>
 
-              <div id="commandList" class="command-list"></div>
             </div>
 
             <div id="groupFields" class="editor-fields" style="display:none">
-              <label>
-                Group name
-                <input id="groupNameInput" autocomplete="off" />
-              </label>
 
-              <div class="commands-header">
-                <div>
-                  <h3>Profiles in this group</h3>
-                  <p>Each profile opens in its own tab when the group launches.</p>
-                </div>
+              <div class="editor-section editor-section-general">
+                <label>
+                  Group name
+                  <input id="groupNameInput" autocomplete="off" />
+                </label>
               </div>
 
-              <div id="groupMemberList" class="group-member-list"></div>
+              <details class="editor-section" open>
+                <summary class="editor-section-header">
+                  <span>Profiles in this group</span>
+                </summary>
+                <p class="editor-section-hint">Each profile opens in its own tab when the group launches.</p>
+                <div id="groupMemberList" class="group-member-list"></div>
+                <div id="groupAddRow" class="group-add-row"></div>
+              </details>
 
-              <div id="groupAddRow" class="group-add-row"></div>
-            </div>
+              <div class="editor-actions">
+                <button id="deleteGroupButton" class="danger-button" type="button">Delete group</button>
+              </div>
 
-            <div class="editor-actions">
-              <button id="duplicateProfileButton" class="ghost-button" type="button">Duplicate</button>
-              <button id="deleteProfileButton" class="danger-button" type="button">Delete</button>
-              <button id="deleteGroupButton" class="danger-button" type="button" hidden>Delete group</button>
             </div>
           </section>
 

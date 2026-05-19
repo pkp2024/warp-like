@@ -124,10 +124,22 @@ const elements = {
   profileFields: document.querySelector("#profileFields"),
   groupFields: document.querySelector("#groupFields"),
   profileNameInput: document.querySelector("#profileNameInput"),
-  cwdInput: document.querySelector("#cwdInput"),
   stopOnErrorInput: document.querySelector("#stopOnErrorInput"),
   themeSwatches: document.querySelector("#themeSwatches"),
+  themeSwatchesView: document.querySelector("#themeSwatchesView"),
+  themeYamlView: document.querySelector("#themeYamlView"),
+  themeYamlInput: document.querySelector("#themeYamlInput"),
+  createCustomThemeBtn: document.querySelector("#createCustomThemeBtn"),
+  createThemeForm: document.querySelector("#createThemeForm"),
+  customThemeNameInput: document.querySelector("#customThemeNameInput"),
+  confirmCreateThemeBtn: document.querySelector("#confirmCreateThemeBtn"),
+  cancelCreateThemeBtn: document.querySelector("#cancelCreateThemeBtn"),
   fontSelect: document.querySelector("#fontSelect"),
+  commandListView: document.querySelector("#commandListView"),
+  scriptView: document.querySelector("#scriptView"),
+  scriptTextarea: document.querySelector("#scriptTextarea"),
+  saveScriptButton: document.querySelector("#saveScriptButton"),
+  scriptSaveStatus: document.querySelector("#scriptSaveStatus"),
   logFormatInput: document.querySelector("#logFormatInput"),
   logPatternInput: document.querySelector("#logPatternInput"),
   logPatternRow: document.querySelector("#logPatternRow"),
@@ -200,7 +212,9 @@ function normalizeSavedData(saved) {
 
   return {
     profiles: normalizedProfiles,
-    groups
+    groups,
+    customThemes: Array.isArray(saved?.customThemes) ? saved.customThemes : [],
+    recentThemeIds: Array.isArray(saved?.recentThemeIds) ? saved.recentThemeIds : []
   };
 }
 
@@ -220,6 +234,8 @@ async function initProfiles() {
       const saved = normalizeSavedData(stored);
       state.profiles = saved.profiles;
       state.groups = saved.groups;
+      state.customThemes = saved.customThemes;
+      state.recentThemeIds = saved.recentThemeIds;
     } catch {}
   }
 }
@@ -227,7 +243,9 @@ async function initProfiles() {
 function persistProfiles() {
   const saved = {
     profiles: state.profiles,
-    groups: state.groups
+    groups: state.groups,
+    customThemes: state.customThemes,
+    recentThemeIds: state.recentThemeIds
   };
   localStorage.setItem(storageKey, JSON.stringify(saved));
   window.electronAPI?.writeProfiles(saved).catch(() => {});
@@ -282,17 +300,107 @@ function setActiveGroup(id) {
   renderEditor();
 }
 
+const THEME_YAML_KEYS = ["background", "foreground", "cursor", "cursorAccent", "selectionBackground", "selectionForeground"];
+
+function themeToYaml(theme) {
+  return THEME_YAML_KEYS
+    .filter(k => theme[k] != null)
+    .map(k => `${k}: "${theme[k]}"`)
+    .join("\n");
+}
+
+function yamlToTheme(yaml) {
+  const result = {};
+  for (const line of yaml.trim().split("\n")) {
+    const m = line.match(/^([\w]+):\s*"([^"]+)"/) || line.match(/^([\w]+):\s*(\S+)/);
+    if (m) result[m[1].trim()] = m[2].trim();
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function activeThemeMode() {
+  return document.querySelector('[data-target="theme"].mode-toggle-btn.active')?.dataset.mode ?? "swatches";
+}
+
+function activeCommandMode() {
+  return document.querySelector('[data-target="command"].mode-toggle-btn.active')?.dataset.mode ?? "list";
+}
+
+function findMatchingTheme(themeObj) {
+  for (const [key, t] of Object.entries(THEMES)) {
+    if (JSON.stringify(t.theme) === JSON.stringify(themeObj)) return key;
+  }
+  return null;
+}
+
+function setThemeMode(mode, { sync = true } = {}) {
+  const prev = activeThemeMode();
+  if (sync && prev !== mode) {
+    if (mode === "yaml") {
+      // Swatches → YAML: populate from current swatch if blank or stale
+      const profile = activeProfile();
+      elements.themeYamlInput.value = themeToYaml(THEMES[profile?.theme ?? "ocean"].theme);
+    } else if (mode === "swatches") {
+      // YAML → Swatches: try to find a matching built-in theme
+      const custom = yamlToTheme(elements.themeYamlInput.value);
+      if (custom) {
+        const match = findMatchingTheme(custom);
+        if (match) renderThemeSwatches(match);
+      }
+    }
+  }
+  document.querySelectorAll('[data-target="theme"]').forEach(btn =>
+    btn.classList.toggle("active", btn.dataset.mode === mode));
+  elements.themeSwatchesView.hidden = mode !== "swatches";
+  elements.themeYamlView.hidden = mode !== "yaml";
+}
+
+function setCommandMode(mode, { sync = true } = {}) {
+  const prev = activeCommandMode();
+  if (sync && prev !== mode) {
+    if (mode === "script") {
+      // List → Script: join current commands into script text
+      const lines = [...document.querySelectorAll("[data-command-input]")]
+        .map(el => el.value.trim()).filter(Boolean);
+      elements.scriptTextarea.value = lines.join("\n");
+    } else if (mode === "list") {
+      // Script → List: parse script lines back into commands
+      const lines = elements.scriptTextarea.value
+        .split("\n")
+        .map(l => l.trim())
+        .filter(l => l && !l.startsWith("#"));
+      const profile = activeProfile();
+      if (profile) {
+        profile.commands = lines.length ? lines : ["echo Add a command to this profile"];
+        persistProfiles();
+        renderCommandInputs(profile);
+      }
+    }
+  }
+  document.querySelectorAll('[data-target="command"]').forEach(btn =>
+    btn.classList.toggle("active", btn.dataset.mode === mode));
+  elements.commandListView.hidden = mode !== "list";
+  elements.scriptView.hidden = mode !== "script";
+  elements.addCommandButton.style.display = mode === "list" ? "" : "none";
+  elements.scriptSaveStatus.textContent = "";
+}
+
 function profileFromForm() {
   const checkedTheme = elements.themeSwatches.querySelector("input:checked");
+  const themeMode = activeThemeMode();
+  const commandMode = activeCommandMode();
   return {
     id: state.activeProfileId,
     name: elements.profileNameInput.value.trim() || "Untitled profile",
-    cwd: elements.cwdInput.value.trim(),
     stopOnError: elements.stopOnErrorInput.checked,
     theme: checkedTheme?.value ?? "ocean",
+    themeMode,
+    themeYaml: elements.themeYamlInput.value,
     font: elements.fontSelect.value || "jetbrains",
     logFormat: elements.logFormatInput.checked,
     logPattern: elements.logPatternInput.value.trim() || "[%d{HH:mm:ss}] [%-5level] %msg",
+    commandMode,
+    scriptContent: elements.scriptTextarea.value.trim(),
     commands: [...document.querySelectorAll("[data-command-input]")]
       .map((input) => input.value.trim())
       .filter(Boolean)
@@ -422,30 +530,159 @@ function renderCommandInputs(profile) {
   });
 }
 
-function renderThemeSwatches(selected) {
-  elements.themeSwatches.innerHTML = "";
-  Object.entries(THEMES).forEach(([key, t]) => {
-    const label = document.createElement("label");
-    label.className = `theme-swatch${key === selected ? " selected" : ""}`;
-    label.title = t.label;
-    label.style.setProperty("--swatch-bg", t.bg);
-    label.style.setProperty("--swatch-accent", t.accent);
-    label.innerHTML = `<input type="radio" name="theme-pick" value="${key}" ${key === selected ? "checked" : ""}>
-      <span class="swatch-dot"></span>
-      <span class="swatch-name">${t.label}</span>`;
-    label.querySelector("input").addEventListener("change", () => {
-      elements.themeSwatches.querySelectorAll(".theme-swatch").forEach(el => el.classList.remove("selected"));
-      label.classList.add("selected");
-      saveActiveProfileDebounced();
+const SWATCHES_SLOT_COUNT = 4;
+
+function allThemeEntries() {
+  const builtIn = Object.entries(THEMES).map(([key, t]) => ({
+    key, label: t.label, bg: t.bg, accent: t.accent, theme: t.theme, custom: false
+  }));
+  const custom = (state.customThemes ?? []).map(ct => {
+    const theme = { ...THEMES.ocean.theme, ...(yamlToTheme(ct.yaml) ?? {}) };
+    return { key: ct.id, label: ct.name, bg: theme.background ?? "#101217", accent: theme.cursor ?? "#35d0a6", theme, custom: true };
+  });
+  return [...builtIn, ...custom];
+}
+
+function mruThemeKeys() {
+  const all = allThemeEntries().map(t => t.key);
+  const recent = (state.recentThemeIds ?? []).filter(id => all.includes(id));
+  const rest = all.filter(k => !recent.includes(k));
+  return [...recent, ...rest];
+}
+
+function selectTheme(key, { updateMru = false } = {}) {
+  if (updateMru) {
+    state.recentThemeIds = [key, ...(state.recentThemeIds ?? []).filter(id => id !== key)].slice(0, 20);
+  }
+  const themeObj = allThemeEntries().find(t => t.key === key)?.theme ?? THEMES.ocean.theme;
+  elements.themeYamlInput.value = themeToYaml(themeObj);
+  renderThemeSwatches(key);
+  saveActiveProfileDebounced();
+}
+
+let themeDropdownEl = null;
+let themeDropdownScrollCleanup = null;
+
+function closeThemeDropdown() {
+  themeDropdownEl?.remove();
+  themeDropdownEl = null;
+  themeDropdownScrollCleanup?.();
+  themeDropdownScrollCleanup = null;
+}
+
+function openThemeDropdown(anchorEl, selected) {
+  closeThemeDropdown();
+  const ordered = mruThemeKeys();
+  const all = allThemeEntries();
+  const dropdown = document.createElement("div");
+  dropdown.className = "theme-dropdown";
+
+  ordered.forEach(key => {
+    const entry = all.find(t => t.key === key);
+    if (!entry) return;
+    const row = document.createElement("div");
+    row.className = "theme-dropdown-row";
+    const item = document.createElement("button");
+    item.className = `theme-dropdown-item${key === selected ? " active" : ""}`;
+    item.type = "button";
+    item.textContent = entry.label;
+    item.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      selectTheme(key, { updateMru: true });
+      closeThemeDropdown();
     });
-    elements.themeSwatches.append(label);
+    row.append(item);
+    if (entry.custom) {
+      const del = document.createElement("button");
+      del.className = "theme-dropdown-delete";
+      del.type = "button";
+      del.title = "Delete theme";
+      del.textContent = "×";
+      del.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        state.customThemes = state.customThemes.filter(ct => ct.id !== key);
+        state.recentThemeIds = state.recentThemeIds.filter(id => id !== key);
+        persistProfiles();
+        closeThemeDropdown();
+        const fallback = activeProfile()?.theme ?? "ocean";
+        renderThemeSwatches(selected === key ? fallback : selected);
+        if (selected === key) saveActiveProfileDebounced();
+      });
+      row.append(del);
+    }
+    dropdown.append(row);
+  });
+
+  document.body.append(dropdown);
+  themeDropdownEl = dropdown;
+  const rect = anchorEl.getBoundingClientRect();
+  dropdown.style.top = `${rect.bottom + 4}px`;
+  dropdown.style.left = `${rect.left}px`;
+  dropdown.style.minWidth = `${Math.max(rect.width, 160)}px`;
+
+  const scrollEl = document.querySelector(".profile-editor");
+  const onScroll = () => closeThemeDropdown();
+  scrollEl?.addEventListener("scroll", onScroll);
+  themeDropdownScrollCleanup = () => scrollEl?.removeEventListener("scroll", onScroll);
+
+  requestAnimationFrame(() => {
+    document.addEventListener("click", closeThemeDropdown, { once: true });
   });
 }
 
+function renderThemeSwatches(selected) {
+  elements.themeSwatches.innerHTML = "";
+  const all = allThemeEntries();
+  const ordered = mruThemeKeys();
+  const visibleKeys = ordered.slice(0, SWATCHES_SLOT_COUNT);
+  if (!visibleKeys.includes(selected)) {
+    visibleKeys[SWATCHES_SLOT_COUNT - 1] = selected;
+  }
+
+  visibleKeys.forEach(key => {
+    const entry = all.find(t => t.key === key);
+    if (!entry) return;
+    const { label, bg, accent, custom } = entry;
+    const el = document.createElement("label");
+    el.className = `theme-swatch${key === selected ? " selected" : ""}`;
+    el.title = label;
+    el.style.setProperty("--swatch-bg", bg);
+    el.style.setProperty("--swatch-accent", accent);
+    el.innerHTML = `<input type="radio" name="theme-pick" value="${key}" ${key === selected ? "checked" : ""}>
+      <span class="swatch-dot"></span>
+      <span class="swatch-name">${label}</span>`;
+    el.querySelector("input").addEventListener("change", () => selectTheme(key));
+    elements.themeSwatches.append(el);
+  });
+
+  const showMoreBtn = document.querySelector("#showMoreThemesBtn");
+  if (all.length > SWATCHES_SLOT_COUNT) {
+    showMoreBtn.hidden = false;
+    showMoreBtn.textContent = "More ▾";
+    showMoreBtn.onclick = (e) => {
+      e.stopPropagation();
+      openThemeDropdown(showMoreBtn, selected);
+    };
+  } else {
+    showMoreBtn.hidden = true;
+  }
+}
+
 function applyProfileAppearance(tab, profile) {
-  const t = THEMES[profile.theme] ?? THEMES.ocean;
+  let theme;
+  if (THEMES[profile.theme]) {
+    theme = { ...THEMES[profile.theme].theme };
+  } else {
+    const custom = (state.customThemes ?? []).find(ct => ct.id === profile.theme);
+    theme = { ...THEMES.ocean.theme, ...(custom ? yamlToTheme(custom.yaml) ?? {} : {}) };
+  }
+  if (profile.themeMode === "yaml" && profile.themeYaml) {
+    const overrides = yamlToTheme(profile.themeYaml);
+    if (overrides) Object.assign(theme, overrides);
+  }
   const f = FONTS[profile.font] ?? FONTS.jetbrains;
-  tab.terminal.options.theme = t.theme;
+  tab.terminal.options.theme = theme;
   tab.terminal.options.fontFamily = f.value;
   tab.fitAddon.fit();
   tab.terminal.refresh(0, tab.terminal.rows - 1);
@@ -473,7 +710,6 @@ function renderGroupMemberInputs(group) {
         <button class="icon-button" type="button" aria-label="Remove from group">×</button>
       `;
       row.querySelector("strong").textContent = profile.name;
-      row.querySelector("small").textContent = profile.cwd || "~/";
       row.querySelector("button").addEventListener("click", () => {
         const g = activeGroup();
         if (!g) return;
@@ -526,12 +762,8 @@ function renderEditor() {
 
   const isGroup = state.activeEditor === "group";
   elements.activeEditorType.textContent = isGroup ? "Group" : "Profile";
-  elements.profileFields.style.display = isGroup ? "none" : "contents";
-  elements.groupFields.style.display = isGroup ? "contents" : "none";
-  elements.addCommandButton.disabled = isGroup;
-  elements.duplicateProfileButton.hidden = isGroup;
-  elements.deleteProfileButton.hidden = isGroup;
-  elements.deleteGroupButton.hidden = !isGroup;
+  elements.profileFields.style.display = isGroup ? "none" : "flex";
+  elements.groupFields.style.display = isGroup ? "flex" : "none";
   elements.launchProfileButton.disabled = isGroup && !activeGroup()?.profileIds.length;
   elements.launchProfileButton.lastChild.textContent = isGroup ? " Launch group" : " Launch";
 
@@ -552,13 +784,21 @@ function renderEditor() {
   const profile = activeProfile();
   elements.activeProfileName.textContent = profile.name;
   elements.profileNameInput.value = profile.name;
-  elements.cwdInput.value = profile.cwd;
   elements.stopOnErrorInput.checked = profile.stopOnError;
   renderThemeSwatches(profile.theme ?? "ocean");
   elements.fontSelect.value = profile.font ?? "jetbrains";
+  const themeMode = profile.themeMode ?? "swatches";
+  setThemeMode(themeMode, { sync: false });
+  elements.createThemeForm.hidden = true;
+  elements.createCustomThemeBtn.hidden = false;
+  const baseThemeObj = THEMES[profile.theme]?.theme ?? allThemeEntries().find(t => t.key === profile.theme)?.theme ?? THEMES.ocean.theme;
+  elements.themeYamlInput.value = profile.themeYaml ?? themeToYaml(baseThemeObj);
   elements.logFormatInput.checked = !!profile.logFormat;
   elements.logPatternInput.value = profile.logPattern ?? "[%d{HH:mm:ss}] [%-5level] %msg";
   elements.logPatternRow.hidden = !profile.logFormat;
+  const commandMode = profile.commandMode ?? "list";
+  setCommandMode(commandMode, { sync: false });
+  elements.scriptTextarea.value = profile.scriptContent ?? "";
   renderCommandInputs(profile);
 }
 
@@ -1226,7 +1466,9 @@ async function launchProfileInTab(profile, tab = activeTab(), resolvedCommands =
 
   if (!tab.shellId) return;
 
-  const input = commands.join("\n") + "\n";
+  const input = profile.commandMode === "script" && profile.scriptContent
+    ? profile.scriptContent.split("\n").filter(l => l.trim() && !l.trim().startsWith("#")).join("\n") + "\n"
+    : commands.join("\n") + "\n";
   await fetch(`/api/shells/${tab.shellId}/input`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -1306,7 +1548,8 @@ function handleSessionEvent(tab, event) {
 
 // ── Event listeners ───────────────────────────────────────────────────────────
 
-elements.newProfileButton.addEventListener("click", () => {
+elements.newProfileButton.addEventListener("click", (e) => {
+  e.stopPropagation();
   const profile = {
     id: crypto.randomUUID(),
     name: "New profile",
@@ -1321,7 +1564,8 @@ elements.newProfileButton.addEventListener("click", () => {
   renderEditor();
 });
 
-elements.newGroupButton.addEventListener("click", () => {
+elements.newGroupButton.addEventListener("click", (e) => {
+  e.stopPropagation();
   const group = {
     id: crypto.randomUUID(),
     name: "New group",
@@ -1336,9 +1580,73 @@ elements.newGroupButton.addEventListener("click", () => {
 
 elements.saveProfileButton.addEventListener("click", () => saveCurrentEditor());
 elements.profileNameInput.addEventListener("input", saveActiveProfileDebounced);
-elements.cwdInput.addEventListener("input", saveActiveProfileDebounced);
 elements.stopOnErrorInput.addEventListener("change", saveActiveProfile);
 elements.fontSelect.addEventListener("change", saveActiveProfile);
+
+document.querySelectorAll('[data-target="theme"]').forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setThemeMode(btn.dataset.mode);
+    saveActiveProfileDebounced();
+  });
+});
+
+elements.themeYamlInput.addEventListener("input", saveActiveProfileDebounced);
+
+elements.createCustomThemeBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  elements.createThemeForm.hidden = false;
+  elements.createCustomThemeBtn.hidden = true;
+  elements.customThemeNameInput.value = "";
+  elements.customThemeNameInput.focus();
+});
+
+elements.cancelCreateThemeBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  elements.createThemeForm.hidden = true;
+  elements.createCustomThemeBtn.hidden = false;
+});
+
+elements.confirmCreateThemeBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const name = elements.customThemeNameInput.value.trim();
+  if (!name) { elements.customThemeNameInput.focus(); return; }
+  const yaml = elements.themeYamlInput.value.trim();
+  if (!yaml) return;
+  const id = crypto.randomUUID();
+  state.customThemes = [...(state.customThemes ?? []), { id, name, yaml }];
+  state.recentThemeIds = [id, ...(state.recentThemeIds ?? [])].slice(0, 20);
+  const profile = activeProfile();
+  if (profile) { profile.theme = id; }
+  persistProfiles();
+  elements.createThemeForm.hidden = true;
+  elements.createCustomThemeBtn.hidden = false;
+  setThemeMode("swatches");
+  renderThemeSwatches(id);
+  saveActiveProfileDebounced();
+});
+
+document.querySelectorAll('[data-target="command"]').forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setCommandMode(btn.dataset.mode);
+    saveActiveProfileDebounced();
+  });
+});
+
+elements.saveScriptButton.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const script = elements.scriptTextarea.value.trim();
+  if (!script) {
+    elements.scriptSaveStatus.className = "script-save-status error";
+    elements.scriptSaveStatus.textContent = "Script cannot be empty";
+    return;
+  }
+  saveActiveProfile();
+  elements.scriptSaveStatus.className = "script-save-status success";
+  elements.scriptSaveStatus.textContent = "Saved ✓";
+  setTimeout(() => { elements.scriptSaveStatus.textContent = ""; }, 2000);
+});
 elements.logFormatInput.addEventListener("change", () => {
   elements.logPatternRow.hidden = !elements.logFormatInput.checked;
   saveActiveProfile();
@@ -1346,7 +1654,8 @@ elements.logFormatInput.addEventListener("change", () => {
 elements.logPatternInput.addEventListener("input", saveActiveProfileDebounced);
 elements.groupNameInput.addEventListener("input", saveActiveGroupDebounced);
 
-elements.addCommandButton.addEventListener("click", () => {
+elements.addCommandButton.addEventListener("click", (e) => {
+  e.stopPropagation();
   const profile = activeProfile();
   profile.commands.push("");
   persistProfiles();
