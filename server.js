@@ -52,6 +52,38 @@ function emit(session, event) {
   session.emitter.emit("event", event);
 }
 
+const LOG_LEVEL_RE = /\b(FATAL|ERROR|WARN(?:ING)?|INFO|DEBUG|TRACE)\b/;
+const LOG_COLORS = {
+  FATAL: "\x1b[1;31m", ERROR: "\x1b[31m",
+  WARN: "\x1b[33m",    WARNING: "\x1b[33m",
+  INFO: "\x1b[36m",    DEBUG: "\x1b[90m",   TRACE: "\x1b[2;37m"
+};
+const ANSI_STRIP_RE = /\x1b\[[0-9;]*[a-zA-Z]/g;
+
+function formatLogLine(rawLine, pattern) {
+  const plain = rawLine.replace(ANSI_STRIP_RE, "");
+  const match = plain.match(LOG_LEVEL_RE);
+  const rawLevel = match ? match[1].toUpperCase() : null;
+  const level = rawLevel === "WARNING" ? "WARN" : rawLevel;
+  const color = level ? (LOG_COLORS[level] ?? "\x1b[37m") : "\x1b[37m";
+  const reset = "\x1b[0m";
+  const dim = "\x1b[2m";
+
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const ts = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const levelStr = (level ?? "INFO").padEnd(5);
+
+  const formatted = pattern
+    .replace(/%d\{[^}]*\}/g, `${dim}${ts}${reset}${color}`)
+    .replace(/%d\b/g, `${dim}${ts}${reset}${color}`)
+    .replace(/%-5(?:level|p)\b/g, levelStr)
+    .replace(/%-?\d*(?:level|p)\b/g, levelStr)
+    .replace(/%(?:msg|m)\b/g, rawLine);
+
+  return `${color}${formatted}${reset}`;
+}
+
 function resolveWorkingDirectory(cwd) {
   const home = process.env.HOME || ROOT;
   if (!cwd || typeof cwd !== "string") return home;
@@ -151,7 +183,10 @@ async function runSession(session) {
         continue;
       }
 
-      emit(session, { type: "output", stream: "stdout", text: line + "\n" });
+      const text = session.logFormat
+        ? formatLogLine(line, session.logPattern) + "\r\n"
+        : line + "\n";
+      emit(session, { type: "output", stream: "stdout", text });
     }
   });
 
@@ -314,6 +349,8 @@ async function handleApi(req, res, url) {
         cols,
         rows,
         stopOnError: payload.stopOnError !== false,
+        logFormat: !!payload.logFormat,
+        logPattern: String(payload.logPattern || "[%d{HH:mm:ss}] [%-5level] %msg"),
         events: [],
         emitter: new EventEmitter(),
         child: null,

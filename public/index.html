@@ -6,6 +6,9 @@
     <title>Termpad</title>
     <link rel="stylesheet" href="/vendor/@xterm/xterm/css/xterm.css" />
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&family=JetBrains+Mono&family=Source+Code+Pro&family=Ubuntu+Mono&display=swap" rel="stylesheet" />
   </head>
   <body>
     <main class="app-shell">
@@ -73,6 +76,37 @@
                   <span></span>
                 </label>
               </div>
+
+              <div class="appearance-section">
+                <div class="appearance-label">Theme</div>
+                <div id="themeSwatches" class="theme-swatches"></div>
+              </div>
+
+              <label>
+                Font
+                <select id="fontSelect" class="font-select">
+                  <option value="jetbrains">JetBrains Mono</option>
+                  <option value="fira">Fira Code</option>
+                  <option value="sourceCode">Source Code Pro</option>
+                  <option value="ubuntu">Ubuntu Mono</option>
+                </select>
+              </label>
+
+              <div class="switch-row">
+                <div>
+                  <strong>Log format</strong>
+                  <span>Apply a pattern to each output line (log4j2-style).</span>
+                </div>
+                <label class="switch">
+                  <input id="logFormatInput" type="checkbox" />
+                  <span></span>
+                </label>
+              </div>
+
+              <label id="logPatternRow" hidden>
+                Pattern
+                <input id="logPatternInput" placeholder="[%d{HH:mm:ss}] [%-5level] %msg" autocomplete="off" />
+              </label>
 
               <div class="commands-header">
                 <div>

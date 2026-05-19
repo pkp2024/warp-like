@@ -284,6 +284,86 @@ label {
   font-weight: 700;
 }
 
+.appearance-section {
+  display: grid;
+  gap: 8px;
+}
+
+.appearance-label {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.theme-swatches {
+  display: flex;
+  gap: 8px;
+}
+
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  flex: 1;
+  transition: border-color 140ms ease, background 140ms ease;
+  background: #151820;
+}
+
+.theme-swatch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.theme-swatch .swatch-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--swatch-bg);
+  border: 3px solid var(--swatch-accent);
+  display: block;
+}
+
+.theme-swatch .swatch-name {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.theme-swatch.selected {
+  border-color: rgb(53 208 166 / 70%);
+  background: #1a2724;
+}
+
+.theme-swatch.selected .swatch-name {
+  color: var(--ink);
+}
+
+.font-select {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #101217;
+  color: var(--ink);
+  outline: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.font-select:focus {
+  border-color: rgb(53 208 166 / 70%);
+  box-shadow: 0 0 0 3px rgb(53 208 166 / 12%);
+}
+
 input,
 textarea {
   width: 100%;

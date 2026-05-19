@@ -9,6 +9,10 @@ const defaultProfiles = [
     name: "Project warmup",
     cwd: "",
     stopOnError: true,
+    theme: "ocean",
+    font: "jetbrains",
+    logFormat: false,
+    logPattern: "[%d{HH:mm:ss}] [%-5level] %msg",
     commands: ["pwd", "git status --short", "npm test"]
   },
   {
@@ -16,6 +20,10 @@ const defaultProfiles = [
     name: "System check",
     cwd: "",
     stopOnError: false,
+    theme: "dracula",
+    font: "jetbrains",
+    logFormat: false,
+    logPattern: "[%d{HH:mm:ss}] [%-5level] %msg",
     commands: ["date", "node --version", "npm --version"]
   }
 ];
@@ -28,28 +36,73 @@ const defaultGroups = [
   }
 ];
 
-const terminalTheme = {
-  background: "#0b0d10",
-  foreground: "#d8ffe9",
-  cursor: "#35d0a6",
-  selectionBackground: "#24443c",
-  black: "#101217",
-  red: "#ff6961",
-  green: "#35d0a6",
-  yellow: "#f8c75c",
-  blue: "#6aa7ff",
-  magenta: "#d28cff",
-  cyan: "#64d7e2",
-  white: "#f4f5f7",
-  brightBlack: "#626b7a",
-  brightRed: "#ff9a94",
-  brightGreen: "#67e6c4",
-  brightYellow: "#ffe08a",
-  brightBlue: "#9bc3ff",
-  brightMagenta: "#e2b3ff",
-  brightCyan: "#9eeef5",
-  brightWhite: "#ffffff"
+const THEMES = {
+  ocean: {
+    label: "Ocean",
+    bg: "#0b0d10",
+    accent: "#35d0a6",
+    theme: {
+      background: "#0b0d10", foreground: "#d8ffe9", cursor: "#35d0a6",
+      selectionBackground: "#24443c",
+      black: "#101217", red: "#ff6961", green: "#35d0a6", yellow: "#f8c75c",
+      blue: "#6aa7ff", magenta: "#d28cff", cyan: "#64d7e2", white: "#f4f5f7",
+      brightBlack: "#626b7a", brightRed: "#ff9a94", brightGreen: "#67e6c4",
+      brightYellow: "#ffe08a", brightBlue: "#9bc3ff", brightMagenta: "#e2b3ff",
+      brightCyan: "#9eeef5", brightWhite: "#ffffff"
+    }
+  },
+  dracula: {
+    label: "Dracula",
+    bg: "#282a36",
+    accent: "#ff79c6",
+    theme: {
+      background: "#282a36", foreground: "#f8f8f2", cursor: "#ff79c6",
+      selectionBackground: "#44475a",
+      black: "#21222c", red: "#ff5555", green: "#50fa7b", yellow: "#f1fa8c",
+      blue: "#bd93f9", magenta: "#ff79c6", cyan: "#8be9fd", white: "#f8f8f2",
+      brightBlack: "#6272a4", brightRed: "#ff6e6e", brightGreen: "#69ff94",
+      brightYellow: "#ffffa5", brightBlue: "#d6acff", brightMagenta: "#ff92df",
+      brightCyan: "#a4ffff", brightWhite: "#ffffff"
+    }
+  },
+  nord: {
+    label: "Nord",
+    bg: "#2e3440",
+    accent: "#88c0d0",
+    theme: {
+      background: "#2e3440", foreground: "#d8dee9", cursor: "#88c0d0",
+      selectionBackground: "#4c566a",
+      black: "#3b4252", red: "#bf616a", green: "#a3be8c", yellow: "#ebcb8b",
+      blue: "#81a1c1", magenta: "#b48ead", cyan: "#88c0d0", white: "#e5e9f0",
+      brightBlack: "#4c566a", brightRed: "#bf616a", brightGreen: "#a3be8c",
+      brightYellow: "#ebcb8b", brightBlue: "#81a1c1", brightMagenta: "#b48ead",
+      brightCyan: "#8fbcbb", brightWhite: "#eceff4"
+    }
+  },
+  solarized: {
+    label: "Solarized",
+    bg: "#002b36",
+    accent: "#268bd2",
+    theme: {
+      background: "#002b36", foreground: "#839496", cursor: "#268bd2",
+      selectionBackground: "#073642",
+      black: "#073642", red: "#dc322f", green: "#859900", yellow: "#b58900",
+      blue: "#268bd2", magenta: "#d33682", cyan: "#2aa198", white: "#eee8d5",
+      brightBlack: "#586e75", brightRed: "#cb4b16", brightGreen: "#586e75",
+      brightYellow: "#657b83", brightBlue: "#839496", brightMagenta: "#6c71c4",
+      brightCyan: "#93a1a1", brightWhite: "#fdf6e3"
+    }
+  }
 };
+
+const FONTS = {
+  jetbrains:  { label: "JetBrains Mono",  value: '"JetBrains Mono", monospace' },
+  fira:       { label: "Fira Code",        value: '"Fira Code", monospace' },
+  sourceCode: { label: "Source Code Pro",  value: '"Source Code Pro", monospace' },
+  ubuntu:     { label: "Ubuntu Mono",      value: '"Ubuntu Mono", monospace' }
+};
+
+const terminalTheme = THEMES.ocean.theme;
 
 const state = {
   ...loadSavedData(),
@@ -73,6 +126,11 @@ const elements = {
   profileNameInput: document.querySelector("#profileNameInput"),
   cwdInput: document.querySelector("#cwdInput"),
   stopOnErrorInput: document.querySelector("#stopOnErrorInput"),
+  themeSwatches: document.querySelector("#themeSwatches"),
+  fontSelect: document.querySelector("#fontSelect"),
+  logFormatInput: document.querySelector("#logFormatInput"),
+  logPatternInput: document.querySelector("#logPatternInput"),
+  logPatternRow: document.querySelector("#logPatternRow"),
   commandList: document.querySelector("#commandList"),
   groupNameInput: document.querySelector("#groupNameInput"),
   groupMemberList: document.querySelector("#groupMemberList"),
@@ -80,6 +138,7 @@ const elements = {
   terminalTabs: document.querySelector("#terminalTabs"),
   terminalOutput: document.querySelector("#terminalOutput"),
   terminalOutputWrapper: document.querySelector("#terminalOutputWrapper"),
+
   terminalStatus: document.querySelector("#terminalStatus"),
   newTerminalTabButton: document.querySelector("#newTerminalTabButton"),
   newProfileButton: document.querySelector("#newProfileButton"),
@@ -224,11 +283,16 @@ function setActiveGroup(id) {
 }
 
 function profileFromForm() {
+  const checkedTheme = elements.themeSwatches.querySelector("input:checked");
   return {
     id: state.activeProfileId,
     name: elements.profileNameInput.value.trim() || "Untitled profile",
     cwd: elements.cwdInput.value.trim(),
     stopOnError: elements.stopOnErrorInput.checked,
+    theme: checkedTheme?.value ?? "ocean",
+    font: elements.fontSelect.value || "jetbrains",
+    logFormat: elements.logFormatInput.checked,
+    logPattern: elements.logPatternInput.value.trim() || "[%d{HH:mm:ss}] [%-5level] %msg",
     commands: [...document.querySelectorAll("[data-command-input]")]
       .map((input) => input.value.trim())
       .filter(Boolean)
@@ -358,6 +422,35 @@ function renderCommandInputs(profile) {
   });
 }
 
+function renderThemeSwatches(selected) {
+  elements.themeSwatches.innerHTML = "";
+  Object.entries(THEMES).forEach(([key, t]) => {
+    const label = document.createElement("label");
+    label.className = `theme-swatch${key === selected ? " selected" : ""}`;
+    label.title = t.label;
+    label.style.setProperty("--swatch-bg", t.bg);
+    label.style.setProperty("--swatch-accent", t.accent);
+    label.innerHTML = `<input type="radio" name="theme-pick" value="${key}" ${key === selected ? "checked" : ""}>
+      <span class="swatch-dot"></span>
+      <span class="swatch-name">${t.label}</span>`;
+    label.querySelector("input").addEventListener("change", () => {
+      elements.themeSwatches.querySelectorAll(".theme-swatch").forEach(el => el.classList.remove("selected"));
+      label.classList.add("selected");
+      saveActiveProfileDebounced();
+    });
+    elements.themeSwatches.append(label);
+  });
+}
+
+function applyProfileAppearance(tab, profile) {
+  const t = THEMES[profile.theme] ?? THEMES.ocean;
+  const f = FONTS[profile.font] ?? FONTS.jetbrains;
+  tab.terminal.options.theme = t.theme;
+  tab.terminal.options.fontFamily = f.value;
+  tab.fitAddon.fit();
+  tab.terminal.refresh(0, tab.terminal.rows - 1);
+}
+
 function renderGroupMemberInputs(group) {
   elements.groupMemberList.innerHTML = "";
 
@@ -461,6 +554,11 @@ function renderEditor() {
   elements.profileNameInput.value = profile.name;
   elements.cwdInput.value = profile.cwd;
   elements.stopOnErrorInput.checked = profile.stopOnError;
+  renderThemeSwatches(profile.theme ?? "ocean");
+  elements.fontSelect.value = profile.font ?? "jetbrains";
+  elements.logFormatInput.checked = !!profile.logFormat;
+  elements.logPatternInput.value = profile.logPattern ?? "[%d{HH:mm:ss}] [%-5level] %msg";
+  elements.logPatternRow.hidden = !profile.logFormat;
   renderCommandInputs(profile);
 }
 
@@ -534,7 +632,7 @@ function createTerminalTab({ title = "Terminal", startShell = true } = {}) {
     shellEventSource: null,
     activeSessionId: null,
     eventSource: null,
-    profileSessionRunning: false
+    profileSessionRunning: false,
   };
 
   terminal.onData((data) => {
@@ -1010,6 +1108,56 @@ function showVariableModal(vars, profileName = null) {
   });
 }
 
+function handleTerminalSessionEvent(tab, event) {
+  if (event.type === "command:start") {
+    tab.terminal.write(`\r\n\x1b[2m$ ${event.command}\x1b[0m\r\n`);
+    updateTabStatus(tab, `Running command ${event.index + 1}`);
+  }
+  if (event.type === "output") {
+    tab.terminal.write(event.text);
+  }
+  if (event.type === "command:end" && event.exitCode !== 0) {
+    tab.terminal.write(`\x1b[31m[exit ${event.exitCode}]\x1b[0m\r\n`);
+  }
+  if (event.type === "session" && ["completed", "cancelled", "stopped"].includes(event.status)) {
+    tab.terminal.write(`\r\n\x1b[2m[session ${event.status}]\x1b[0m\r\n`);
+    tab.profileSessionRunning = false;
+    tab.eventSource?.close();
+    tab.eventSource = null;
+    renderTabs();
+    startInteractiveShell(tab);
+    tab.terminal.focus();
+  }
+}
+
+async function launchWithSession(profile, tab, commands) {
+  const res = await fetch("/api/sessions", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      commands,
+      profileName: profile.name,
+      cwd: profile.cwd,
+      stopOnError: profile.stopOnError,
+      logFormat: profile.logFormat,
+      logPattern: profile.logPattern,
+      cols: tab.terminal.cols,
+      rows: tab.terminal.rows
+    })
+  });
+  if (!res.ok) return;
+  const { id } = await res.json();
+  tab.activeSessionId = id;
+  tab.profileSessionRunning = true;
+
+  const es = new EventSource(`/api/sessions/${id}/events`);
+  tab.eventSource = es;
+  es.onmessage = (e) => { try { handleTerminalSessionEvent(tab, JSON.parse(e.data)); } catch {} };
+
+  updateTabStatus(tab, "Starting...");
+  renderTabs();
+}
+
 // ── Launch ────────────────────────────────────────────────────────────────────
 
 async function launchProfileInTab(profile, tab = activeTab(), resolvedCommands = null) {
@@ -1029,6 +1177,16 @@ async function launchProfileInTab(profile, tab = activeTab(), resolvedCommands =
   }
 
   tab.title = profile.name;
+  applyProfileAppearance(tab, profile);
+  renderTabs();
+
+  if (profile.logFormat) {
+    tab.terminal.clear();
+    tab.terminal.write(`\x1b[2m$ launch profile "${profile.name}"\x1b[0m\r\n\r\n`);
+    await launchWithSession(profile, tab, commands);
+    return;
+  }
+
   tab.terminal.clear();
   tab.terminal.write(`$ launch profile "${profile.name}"\r\n\r\n`);
   updateTabStatus(tab, "Starting...");
@@ -1149,6 +1307,12 @@ elements.saveProfileButton.addEventListener("click", () => saveCurrentEditor());
 elements.profileNameInput.addEventListener("input", saveActiveProfileDebounced);
 elements.cwdInput.addEventListener("input", saveActiveProfileDebounced);
 elements.stopOnErrorInput.addEventListener("change", saveActiveProfile);
+elements.fontSelect.addEventListener("change", saveActiveProfile);
+elements.logFormatInput.addEventListener("change", () => {
+  elements.logPatternRow.hidden = !elements.logFormatInput.checked;
+  saveActiveProfile();
+});
+elements.logPatternInput.addEventListener("input", saveActiveProfileDebounced);
 elements.groupNameInput.addEventListener("input", saveActiveGroupDebounced);
 
 elements.addCommandButton.addEventListener("click", () => {
@@ -1227,6 +1391,7 @@ elements.terminalOutput.addEventListener("contextmenu", (e) => showContextMenu(e
 
 elements.splitRightButton.addEventListener("click", () => splitAt(state.focusedPaneId, "right"));
 elements.splitDownButton.addEventListener("click", () => splitAt(state.focusedPaneId, "down"));
+
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
