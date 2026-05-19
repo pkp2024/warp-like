@@ -1,6 +1,6 @@
 {
   "name": "termpad",
-  "version": "1.0.0",
+  "version": "1.12.0",
   "description": "A desktop terminal profile launcher for predefined command sets.",
   "type": "module",
   "main": "desktop/main.js",
@@ -31,7 +31,7 @@
     "publish": {
       "provider": "github",
       "owner": "pkp2024",
-      "repo": "warp-like"
+      "repo": "termpad"
     }
   },
   "devDependencies": {
