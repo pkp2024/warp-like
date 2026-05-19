@@ -25,7 +25,7 @@ esac
 info "Fetching latest release from GitHub..."
 # Use redirect URL — no API rate limit
 LATEST_URL="https://github.com/${REPO}/releases/latest"
-VERSION=$(curl -fsSL -o /dev/null -w '%{url_effective}' "$LATEST_URL" | grep -o 'v[0-9][^/]*$')
+VERSION=$(curl -sL -o /dev/null -w '%{url_effective}' "$LATEST_URL" | grep -o 'v[0-9][^/]*$')
 [ -n "$VERSION" ] || error "Could not determine latest version."
 
 if [ "$OS" = "Linux" ]; then
