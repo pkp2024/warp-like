@@ -308,14 +308,84 @@ h2 {
 }
 
 .profile-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 18px;
+  overflow-y: auto;
+  padding: 0;
 }
 
 .editor-fields {
-  display: contents;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 4px 16px;
+}
+
+.editor-section {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 14px;
+}
+
+.editor-section:last-child {
+  border-bottom: none;
+}
+
+.editor-section-general {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.editor-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 0;
+  border-radius: 4px;
+}
+
+.editor-section-header::-webkit-details-marker {
+  display: none;
+}
+
+.editor-section-header span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+
+.editor-section-header span::before {
+  content: "▼";
+  font-size: 0.55rem;
+  transition: transform 180ms ease;
+}
+
+details.editor-section:not([open]) > .editor-section-header span::before {
+  transform: rotate(-90deg);
+}
+
+.editor-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.editor-section-hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 8px 0 10px;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 10px;
+  padding: 14px 14px 4px;
 }
 
 label {
@@ -485,12 +555,6 @@ textarea {
   transform: translateX(20px);
 }
 
-.commands-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
 
 .command-list {
   display: grid;
@@ -579,11 +643,6 @@ textarea {
   font-size: 0.82rem;
 }
 
-.editor-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: auto;
-}
 
 .terminal-panel {
   display: grid;

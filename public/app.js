@@ -526,12 +526,8 @@ function renderEditor() {
 
   const isGroup = state.activeEditor === "group";
   elements.activeEditorType.textContent = isGroup ? "Group" : "Profile";
-  elements.profileFields.style.display = isGroup ? "none" : "contents";
-  elements.groupFields.style.display = isGroup ? "contents" : "none";
-  elements.addCommandButton.disabled = isGroup;
-  elements.duplicateProfileButton.hidden = isGroup;
-  elements.deleteProfileButton.hidden = isGroup;
-  elements.deleteGroupButton.hidden = !isGroup;
+  elements.profileFields.style.display = isGroup ? "none" : "flex";
+  elements.groupFields.style.display = isGroup ? "flex" : "none";
   elements.launchProfileButton.disabled = isGroup && !activeGroup()?.profileIds.length;
   elements.launchProfileButton.lastChild.textContent = isGroup ? " Launch group" : " Launch";
 
@@ -1348,7 +1344,8 @@ elements.logFormatInput.addEventListener("change", () => {
 elements.logPatternInput.addEventListener("input", saveActiveProfileDebounced);
 elements.groupNameInput.addEventListener("input", saveActiveGroupDebounced);
 
-elements.addCommandButton.addEventListener("click", () => {
+elements.addCommandButton.addEventListener("click", (e) => {
+  e.stopPropagation();
   const profile = activeProfile();
   profile.commands.push("");
   persistProfiles();
