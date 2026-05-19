@@ -634,6 +634,7 @@ function createTerminalTab({ title = "Terminal", startShell = true } = {}) {
     activeSessionId: null,
     eventSource: null,
     profileSessionRunning: false,
+    profileCwd: null,
   };
 
   terminal.onData((data) => {
@@ -687,7 +688,8 @@ function createSplitPane() {
     shellEventSource: null,
     activeSessionId: null,
     eventSource: null,
-    profileSessionRunning: false
+    profileSessionRunning: false,
+    profileCwd: null,
   };
 
   terminal.onData(data => {
@@ -1140,12 +1142,13 @@ function handleTerminalSessionEvent(tab, event) {
     tab.eventSource?.close();
     tab.eventSource = null;
     renderTabs();
-    startInteractiveShell(tab);
+    startInteractiveShell(tab, { cwd: tab.profileCwd });
     tab.terminal.focus();
   }
 }
 
 async function launchWithSession(profile, tab, commands) {
+  tab.profileCwd = profile.cwd;
   const res = await fetch("/api/sessions", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -1192,6 +1195,7 @@ async function launchProfileInTab(profile, tab = activeTab(), resolvedCommands =
   }
 
   tab.title = profile.name;
+  tab.profileCwd = profile.cwd;
   applyProfileAppearance(tab, profile);
   renderTabs();
 
@@ -1269,7 +1273,7 @@ function handleSessionEvent(tab, event) {
       tab.profileSessionRunning = false;
       tab.eventSource?.close();
       renderTabs();
-      startInteractiveShell(tab);
+      startInteractiveShell(tab, { cwd: tab.profileCwd });
       tab.terminal.focus();
     }
   }
